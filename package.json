@@ -1,0 +1,9 @@
+{
+  "name": "convey_system_server",
+  "version": "1.0.0",
+  "main": "main.js",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
