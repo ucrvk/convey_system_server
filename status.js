@@ -1,5 +1,5 @@
-import { memoryUsage } from 'process';
-import { totalmem, freemem } from 'os';
+const { memoryUsage } = require('process');
+const { totalmem, freemem } = require('os');
 function status() {
     const memory_usage = memoryUsage().rss;
     return {
@@ -12,4 +12,4 @@ function status() {
         uptime: `${process.uptime()/60/60}h`
     }
 }
-export default status;
+module.exports = status;

@@ -1,0 +1,15 @@
+{
+    "WORKING_PORT":3000,
+    "JWT":{
+        "SECRET":"secret",
+        "EXPIRED_TIME":"8h"
+    },
+    "SU":{
+        "USERID":1,
+        "HASHED_PASSWORD":"8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
+    },
+    "DB":{
+        "TYPE":"SQLITE",
+        "ROUTE":"./data/db.sqlite3"
+    }
+}
