@@ -1,5 +1,6 @@
 const { memoryUsage } = require('process');
 const { totalmem, freemem } = require('os');
+// 定义一个status函数，用于返回系统状态
 function status() {
     const memory_usage = memoryUsage().rss;
     return {
