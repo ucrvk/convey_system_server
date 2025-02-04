@@ -19,7 +19,6 @@
   "homepage": "https://github.com/ucrvk/convey_system_server#readme",
   "description": "",
   "dependencies": {
-    "axios": "^1.7.9",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "sequelize": "^6.37.5",
