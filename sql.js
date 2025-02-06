@@ -304,7 +304,7 @@ const Shop = sequelize.define('Shop', {
         defaultValue: true
     }
 })
-const scoreHistory = sequelize.define('scoreHistory', {
+const ScoreHistory = sequelize.define('scoreHistory', {
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
