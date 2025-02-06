@@ -304,6 +304,7 @@ const Shop = sequelize.define('Shop', {
         defaultValue: true
     }
 })
+//积分历史
 const ScoreHistory = sequelize.define('scoreHistory', {
     id: {
         type: DataTypes.INTEGER,

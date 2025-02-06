@@ -33,7 +33,7 @@ function jwtVerify(token, id) {
  * 处理输入的函数，只接受四个特定的字符
  * @param {('super'|'score'|'activity'|'user')} input 只能是那四个
  * @param {number} permissionLevel 权限等级
- * @returns {void}
+ * @returns {boolean} 是否拥有权限
  */
 function userPermissionLevelCheck(permissionName, permissionLevel) {
     if (permissionName === 'super' && permissionLevel === 15) return true;
@@ -46,9 +46,24 @@ function userPermissionLevelCheck(permissionName, permissionLevel) {
     }
 }
 
+function userAgentCheckMiddleware(req, res, next) {
+    const allowedHeader = /^convey_system_alpha_1\.0\.\d+$/
+    if (!allowedHeader.test(req.headers['user-agent'])) res.status(403).json({ "status": "error", "message": "user-agent not allowed" });
+    else next();
+}
+
+function loginCheckMiddleware(req, res, next) {
+    const id = req.body.operator;
+    if (!id) res.status(400).json({ "status": "error", "message": "no operator id" });
+    else if (!jwtVerify(req.headers['authorization'], id)) res.status(401).json({ "status": "error", "message": "invalid token" });
+    else next();
+}
+
 module.exports = {
     encryptPassword,
     jwtSign,
     jwtVerify,
-    userPermissionLevelCheck
+    userPermissionLevelCheck,
+    userAgentCheckMiddleware,
+    loginCheckMiddleware
 }
