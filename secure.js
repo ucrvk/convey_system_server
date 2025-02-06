@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { JWT } = require('./settings.json')
-
+const { getUserByID } = require('./sql')
 /**sha256无盐加密*/
 function encryptPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
@@ -55,8 +55,14 @@ function userAgentCheckMiddleware(req, res, next) {
 function loginCheckMiddleware(req, res, next) {
     const id = req.body.operator;
     if (!id) res.status(400).json({ "status": "error", "message": "no operator id" });
-    else if (!jwtVerify(req.headers['authorization'], id)) res.status(401).json({ "status": "error", "message": "invalid token" });
+    else if (!jwtVerify(req.headers['authorization'], id)) res.status(401).json({ "status": "error", "message": "token失效。请尝试重新登录" });
     else next();
+}
+
+async function permissionCheck(req, res, permission) {
+    const permissionNumber = await getUserByID(req.body.operator).userPermissionLevel
+    if (userPermissionLevelCheck(permission, permissionNumber)) return true;
+    else return res.status(403).json({ "status": "error", "message": "权限不足" });
 }
 
 module.exports = {
@@ -65,5 +71,6 @@ module.exports = {
     jwtVerify,
     userPermissionLevelCheck,
     userAgentCheckMiddleware,
-    loginCheckMiddleware
+    loginCheckMiddleware,
+    permissionCheck
 }

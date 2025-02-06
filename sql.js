@@ -78,6 +78,10 @@ async function superUserAutoUpdate() {
     })
 }
 
+async function getUserByID(id){
+    return await User.findByPk(id)
+}
+
 /** 异步更新用户信息，操作用户密码，权限，积分需要使用专门函数 */
 async function updateUser(id, userid, tmpID, QQID, isEnable) {
     try {
@@ -156,7 +160,7 @@ async function userPermissionChange(id, permissionLevel) {
  * @async
  * @param {number} userid 用户id是用户id，不是id
  * @param {string} password 密码由客户端加密，而非服务端
- * @returns {Promise<number>} 正确返回id，错误返回0，系统错误返回-1
+ * @returns {Promise<number>} 正确返回id，错误返回0，用户被禁用返回-1，数据库错误返回-2
  */
 async function userPasswordExamine(userid, password) {
     try {
@@ -166,12 +170,15 @@ async function userPasswordExamine(userid, password) {
             }
         })
         if (user == null) return 0
-        if (user.hashedPassword == password) return user.id
+        if (user.hashedPassword == password) {
+            if (user.isEnable == false) return -1
+            return user.id
+        }
         return 0
     }
     catch (error) {
         console.error(error)
-        return -1
+        return -2
     }
 }
 
@@ -388,6 +395,7 @@ async function purchaseItem(goodsID, ID) {
 }
 module.exports = {
     createUser,
+    getUserByID,
     superUserAutoUpdate,
     updateUser,
     updatePassword,
