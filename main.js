@@ -21,7 +21,7 @@ app.all('/', (req, res) => res.redirect(301, 'https://www.bilibili.com/video/BV1
 //限制ua请求
 app.use(userAgentCheckMiddleware)
 app.post('/login', handle.loginHandle);
-//限制登录请求
+//限制登录请求,
 app.use(loginCheckMiddleware)
 app.listen(WORKING_PORT, () => {
     console.info(`\x1b[32mServer is running on 127.0.0.1:${WORKING_PORT}\x1b[0m`);
