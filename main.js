@@ -15,9 +15,9 @@ app.use(express.json());
 app.disable('x-powered-by');
 
 app.get('/status', (req, res) => res.json(status()));
-app.get('/wives', (req, res) => res.sendFile(filePath + '/8888.jpg'));
-app.get('/wives/video', (req, res) => res.sendFile(filePath + '/8888.mp4'));
-app.all('/', (req, res) => res.redirect(301, 'https://www.bilibili.com/video/BV1ZUfsYpEXy'));
+app.get('/wives', (req, res) => res.header({ 'cache-control': "public, max-age=86400" }).sendFile(filePath + '/8888.jpg'));
+app.get('/wives/video', (req, res) => res.header({ 'cache-control': "public, max-age=86400" }).sendFile(filePath + '/8888.mp4'));
+app.all('/', (req, res) => res.redirect(301, 'https://www.bilibili.com/video/BV1ZUfsYpEXy')); s
 //限制ua请求
 app.use(userAgentCheckMiddleware)
 app.post('/login', handle.loginHandle);
