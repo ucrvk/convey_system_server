@@ -1,7 +1,8 @@
-const { Sequelize, DataTypes, Op } = require('sequelize');
+const { Sequelize, DataTypes, Op, DATE } = require('sequelize');
 const { DB, SU } = require('./settings.json');
 const { encryptPassword } = require('./secure')
 const sequelize = new Sequelize(DB);
+const os = require('os')
 
 const User = sequelize.define('User', {
     id: {
@@ -78,8 +79,8 @@ async function superUserAutoUpdate() {
     })
 }
 
-async function getUserByID(id){
-    return await User.findByPk(id)
+async function getUserByID(id) {
+    return await User.findByPk(id);
 }
 
 /** 异步更新用户信息，操作用户密码，权限，积分需要使用专门函数 */
@@ -194,10 +195,6 @@ const Activity = sequelize.define('Activity', {
         allowNull: false,
         defaultValue: "某活动"
     },
-    description: {
-        type: DataTypes.STRING,
-        allowNull: true
-    },
     server: {
         type: DataTypes.STRING,
         allowNull: true
@@ -219,10 +216,47 @@ const Activity = sequelize.define('Activity', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true
+    },
+    usedDLCS: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        defaultValue: '["dlc_balkan_w.scs","dlc_feldbinder.scs","dlc_krone.scs","dlc_iberia.scs","dlc_north.scs","dlc_balt.scs","dlc_fr.scs","dlc_it.scs","dlc_east.scs","dlc_balkan_e.scs","dlc_greece.scs"]'
     }
 })
 
+async function addActivity(name, server, startTime, endTime, score) {
+    try {
+        await Activity.create({
+            name: name,
+            server: server,
+            startTime: startTime,
+            endTime: endTime,
+            score: score,
+        })
+        return true;
+    }
+    catch (error) {
+        console.error(error)
+        return false
+    }
+}
 
+async function getMostRecentlyActivity(id) {
+    await Activity.findOne({
+        where: {
+            endtime: {
+                [Op.gt]: DataTypes.NOW()
+            }
+        },
+        order: [
+            ['endTime', 'ASC']
+        ]
+    }).then(record => {
+        console.log(record);
+    }).catch(err => {
+        console.error(err);
+    });
+}
 
 //积分统计相关
 const ActivityParticipation = sequelize.define('ActivityParticipation', {
@@ -401,5 +435,7 @@ module.exports = {
     updatePassword,
     updateScore,
     userPermissionChange,
-    userPasswordExamine
+    userPasswordExamine,
+    getMostRecentlyActivity,
+    addActivity,
 }

@@ -38,7 +38,7 @@ function jwtVerify(token, id) {
 function userPermissionLevelCheck(permissionName, permissionLevel) {
     if (permissionName === 'super' && permissionLevel === 15) return true;
     let bytePermissionLevel = permissionLevel.toString(2).padStart(4, '0')
-    switch (bytePermissionLevel) {
+    switch (permissionName) {
         case 'activity': return bytePermissionLevel[1] === '1';
         case 'score': return bytePermissionLevel[2] === '1';
         case 'user': return bytePermissionLevel[3] === '1';
@@ -46,31 +46,11 @@ function userPermissionLevelCheck(permissionName, permissionLevel) {
     }
 }
 
-function userAgentCheckMiddleware(req, res, next) {
-    const allowedHeader = /^convey_system_alpha_1\.0\.\d+$/
-    if (!allowedHeader.test(req.headers['user-agent'])) res.status(403).json({ "status": "error", "message": "user-agent not allowed" });
-    else next();
-}
 
-function loginCheckMiddleware(req, res, next) {
-    const id = req.body.operator;
-    if (!id) res.status(400).json({ "status": "error", "message": "no operator id" });
-    else if (!jwtVerify(req.headers['authorization'], id)) res.status(401).json({ "status": "error", "message": "token失效。请尝试重新登录" });
-    else next();
-}
-
-async function permissionCheck(req, res, permission) {
-    const permissionNumber = await getUserByID(req.body.operator).userPermissionLevel
-    if (userPermissionLevelCheck(permission, permissionNumber)) return true;
-    else return res.status(403).json({ "status": "error", "message": "权限不足" });
-}
 
 module.exports = {
     encryptPassword,
     jwtSign,
     jwtVerify,
-    userPermissionLevelCheck,
-    userAgentCheckMiddleware,
-    loginCheckMiddleware,
-    permissionCheck
+    userPermissionLevelCheck
 }
