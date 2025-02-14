@@ -24,9 +24,22 @@ async function activityPermissionCheckMiddleware(req, res, next) {
         res.status(500).json({ "status": "error", "message": "服务器错误" });
     }
 }
+/**检查用户是否有用户管理权限 */
+async function userPermissionCheckMiddleware(req, res, next) {
+    try {
+        const id = req.body.operator;
+        let permissionCode = await getUserByID(id);
+        userPermissionLevelCheck("user", permissionCode.userPermissionLevel) ? next() : res.status(403).json({ "status": "error", "message": "您没有权限" });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ "status": "error", "message": "服务器错误" });
+    }
+}
 
 module.exports = {
     userAgentCheckMiddleware,
     loginCheckMiddleware,
     activityPermissionCheckMiddleware,
+    userPermissionCheckMiddleware
 }

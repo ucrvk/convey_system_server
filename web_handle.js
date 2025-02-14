@@ -1,5 +1,6 @@
 const { jwtSign } = require('./secure');
 const sql = require('./sql');
+const { userPermissionCheckMiddleware } = require("./middleware")
 
 //** 登录处理 */
 async function loginHandle(req, res) {
@@ -25,6 +26,62 @@ async function loginHandle(req, res) {
 }
 
 
+async function updatePasswordHandle(req, res) {
+    async function updatePassword(req, res) {
+        let result = await sql.updatePassword(req.body.target, req.body.newPassword);
+        if (result) {
+            res.json({ 'status': 'success', 'msg': '密码修改成功' });
+        }
+        else {
+            console.error(err);
+            res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+        }
+    }
+    try {
+        if (!req.body.target || req.body.newPassword) res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        else if (req.body.operator != req.body.target) await userPermissionCheckMiddleware(req, res, updatePassword);
+        else await updatePassword(req.body.target, req.body.newPassword);
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
+async function addUserHandle(req, res) {
+    try {
+        let { userid, QQID, tmpID } = req.body;
+        if (!userid) res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        else {
+            let result = await sql.createUser(userid, tmpID, QQID);
+            switch (result) {
+                case (2): res.status(409).json({ 'status': 'error', 'msg': '用户已存在' }); break;
+                case (1): res.status(500).json({ 'status': 'error', 'msg': '数据库错误' }); break;
+                case (0): res.json({ 'status': 'success', 'msg': '用户添加成功' }); break;
+            }
+        }
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
+
+async function updateUserHandle(req, res) {
+    try {
+        let { userid, QQID, tmpID, isEnable } = req.body;
+        if (isEnable == undefined) isEnable = true;
+        if (!userid) res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        else {
+            let result = await sql.updateUser(userid, tmpID, QQID, isEnable);
+            if (result) res.json({ 'status': 'success', 'msg': '用户更新成功' });
+            else res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+        }
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
 //** 添加活动处理 */
 async function addActivityHandle(req, res) {
     try {
@@ -77,6 +134,10 @@ async function searchActivityHandle(req, res) {
 
 module.exports = {
     loginHandle,
+    updatePasswordHandle,
     addActivityHandle,
-    getMostRecentlyActivityHandle
+    getMostRecentlyActivityHandle,
+    searchActivityHandle,
+    addUserHandle,
+    updateUserHandle
 }

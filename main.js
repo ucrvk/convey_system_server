@@ -23,8 +23,14 @@ app.use(middleware.userAgentCheckMiddleware);
 app.post('/login', handle.loginHandle);
 //限制登录请求,
 app.use(middleware.loginCheckMiddleware);
+//用户类
+app.post('/user/updatepassword', handle.updatePasswordHandle);
+app.post("/user", middleware.userPermissionCheckMiddleware, handle.addUserHandle);
+app.put('/user', middleware.userPermissionCheckMiddleware, handle.updateUserHandle)
+
+//活动类
 app.post("/activity", middleware.activityPermissionCheckMiddleware, handle.addActivityHandle);
-app.put
+app.get("/activity", middleware.activityPermissionCheckMiddleware, handle.searchActivityHandle());
 app.get('/activity/recently', handle.getMostRecentlyActivityHandle);
 
 
