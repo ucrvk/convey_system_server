@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes, Op, DATE } = require('sequelize');
+const { Sequelize, DataTypes, Op } = require('sequelize');
 const { DB, SU } = require('./settings.json');
 const { encryptPassword } = require('./secure')
 const sequelize = new Sequelize(DB);
@@ -241,21 +241,32 @@ async function addActivity(name, server, startTime, endTime, score) {
     }
 }
 
-async function getMostRecentlyActivity(id) {
-    await Activity.findOne({
-        where: {
-            endtime: {
-                [Op.gt]: DataTypes.NOW()
-            }
-        },
-        order: [
-            ['endTime', 'ASC']
-        ]
-    }).then(record => {
-        console.log(record);
-    }).catch(err => {
-        console.error(err);
-    });
+
+/**
+ * 异步获取最近活动项目
+ * @returns {Promise<Activity|0|-1>} 正确返回活动对象，没有活动返回0，数据库错误返回-1
+ */
+async function getMostRecentlyActivity() {
+    try {
+        let now = new Date();
+        let res = await Activity.findOne({
+            where: {
+                endtime: {
+                    [Op.gt]: now
+                }
+            },
+            order: [
+                ['endTime', 'ASC']
+            ]
+        })
+        if (res == null) return 0;
+        return res;
+    }
+    catch (error) {
+        console.error(error)
+        return -1;
+    }
+
 }
 
 //积分统计相关
@@ -285,11 +296,12 @@ async function startRecord(id) {
 }
 async function adminEndRecord(date) {
     try {
+        const now = new Date();
         const usersBeforeDate = await ActivityParticipation.findAll({
             attributes: ['userId'],  // 只查询 userId
             where: {
                 startTime: {
-                    [Op.lt]: date,  // 查找 startTime 小于给定日期的记录
+                    [Op.lt]: now,  // 查找 startTime 小于给定日期的记录
                 },
             },
         });

@@ -1,6 +1,7 @@
 const { jwtSign } = require('./secure');
 const sql = require('./sql');
 
+//** 登录处理 */
 async function loginHandle(req, res) {
     let { username, password } = req.body;
     let result = await sql.userPasswordExamine(username, password);
@@ -23,6 +24,8 @@ async function loginHandle(req, res) {
     }
 }
 
+
+//** 添加活动处理 */
 async function addActivityHandle(req, res) {
     try {
         let { name, server, startTime, endTime, score } = req.body;
@@ -45,8 +48,35 @@ async function addActivityHandle(req, res) {
     }
 }
 
+//** 获取最近活动处理 */
+async function getMostRecentlyActivityHandle(req, res) {
+    try {
+        let result = await sql.getMostRecentlyActivity();
+        if (result == -1) res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+        if (result == 0) res.status(404).json({ 'status': 'error', 'msg': '没有最近的活动' });
+        res.json({ 'status': 'success', 'data': result });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
+
+async function searchActivityHandle(req, res) {
+    try {
+        let { name, server } = req.body;
+        if (!name || !server) {
+
+        }
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
 
 module.exports = {
     loginHandle,
     addActivityHandle,
+    getMostRecentlyActivityHandle
 }

@@ -21,7 +21,7 @@ function jwtSign(id) {
 function jwtVerify(token, id) {
     try {
         let content = jwt.verify(token, JWT.SECRET);
-        if (content?.id === id) return true;
+        if (content?.id == id) return true;
         return false;
     }
     catch (err) {
