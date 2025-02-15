@@ -27,7 +27,8 @@ app.use(middleware.loginCheckMiddleware);
 app.post('/user/updatepassword', handle.updatePasswordHandle);
 app.post("/user", middleware.userPermissionCheckMiddleware, handle.addUserHandle);
 app.put('/user', middleware.userPermissionCheckMiddleware, handle.updateUserHandle)
-
+app.delete('/user', middleware.userPermissionCheckMiddleware, handle.dropUserHandle);
+app.get('/user', middleware.userPermissionCheckMiddleware, handle.getUserHandle);
 //活动类
 app.post("/activity", middleware.activityPermissionCheckMiddleware, handle.addActivityHandle);
 app.get("/activity", middleware.activityPermissionCheckMiddleware, handle.searchActivityHandle());

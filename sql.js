@@ -156,6 +156,62 @@ async function userPermissionChange(id, permissionLevel) {
     }
 }
 
+async function dropUser(id) {
+    try {
+        await User.destroy({
+            where: {
+                id: id
+            }
+        })
+        return true;
+    }
+    catch (error) {
+        console.error(error)
+        return false
+    }
+}
+/**
+ * 智能搜索目标，同时搜索userid,tmpid,qqid
+ * @param {*} searchID 可选项，有值时搜索所有userid,tmpid,qqid中有一个满足的用户，无值时返回所有用户
+ * @param {*} page 可选项，有值时会按10个一页输出
+ * @returns {Promise<User[]>} 返回用户数组
+ */
+async function searchUser(searchID, page) {
+    const pageSize = 10
+    let totalNumber;
+    let result;
+    if (!searchID) {
+        totalNumber = await User.count()
+        result = await User.findAll({
+            offset: (page - 1) * pageSize,
+            limit: pageSize
+        })
+    }
+    else {
+        totalNumber = await User.count({
+            where: {
+                [Op.or]: [
+                    { userid: searchID },
+                    { tmpID: searchID },
+                    { QQID: searchID }
+                ]
+            }
+        })
+        result = await User.findAll({
+            where: {
+                [Op.or]: [
+                    { userid: searchID },
+                    { tmpID: searchID },
+                    { QQID: searchID }
+                ]
+            },
+            offset: (page - 1) * pageSize,
+            limit: pageSize
+        })
+    }
+    if (page) return { 'totalNumber': totalNumber, 'totalPage': Math.ceil(totalNumber / pageSize), 'result': result };
+    return { "totalNumber": totalNumber, "result": result }
+}
 
 /**
  * @async
@@ -446,6 +502,10 @@ module.exports = {
     updateUser,
     updatePassword,
     updateScore,
+    dropUser,
+    userPermissionChange,
+    userPasswordExamine,
+    getMostRecentlyActivity,
     userPermissionChange,
     userPasswordExamine,
     getMostRecentlyActivity,

@@ -82,6 +82,27 @@ async function updateUserHandle(req, res) {
         res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
     }
 }
+
+async function dropUserHandle(req, res) {
+
+    try {
+        let { target } = req.body;
+        if (!target) res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        else {
+            let result = await sql.dropUser(target);
+            if (result) res.json({ 'status': 'success', 'msg': '用户删除成功' });
+            else res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+        }
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
+
+async function getUserHandle(req, res) {
+    //todo
+}
 //** 添加活动处理 */
 async function addActivityHandle(req, res) {
     try {
@@ -136,6 +157,7 @@ module.exports = {
     loginHandle,
     updatePasswordHandle,
     addActivityHandle,
+    dropUserHandle,
     getMostRecentlyActivityHandle,
     searchActivityHandle,
     addUserHandle,
