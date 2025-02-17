@@ -18,8 +18,8 @@ app.get('/status', (req, res) => res.json(status()));
 app.get('/wives', (req, res) => res.header({ 'cache-control': "public, max-age=86400" }).sendFile(filePath + '/8888.jpg'));
 app.get('/wives/video', (req, res) => res.header({ 'cache-control': "public, max-age=86400" }).sendFile(filePath + '/8888.mp4'));
 app.all('/', (req, res) => res.redirect(301, 'https://www.bilibili.com/video/BV1ZUfsYpEXy'));
-//限制ua请求
-app.use(middleware.userAgentCheckMiddleware);
+
+
 app.post('/login', handle.loginHandle);
 //限制登录请求,
 app.use(middleware.loginCheckMiddleware);
@@ -31,12 +31,9 @@ app.delete('/user', middleware.userPermissionCheckMiddleware, handle.dropUserHan
 app.get('/user', middleware.userPermissionCheckMiddleware, handle.getUserHandle);
 //活动类
 app.post("/activity", middleware.activityPermissionCheckMiddleware, handle.addActivityHandle);
-app.get("/activity", middleware.activityPermissionCheckMiddleware, handle.searchActivityHandle());
+app.get("/activity", middleware.activityPermissionCheckMiddleware, handle.searchActivityHandle);
 app.get('/activity/recently', handle.getMostRecentlyActivityHandle);
-app.get('activity/download', handle.downloadActivityHandle);
-
-
-
+//app.get('activity/download', handle.downloadActivityHandle);
 
 
 app.listen(WORKING_PORT, () => {
