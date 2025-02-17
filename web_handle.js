@@ -101,7 +101,15 @@ async function dropUserHandle(req, res) {
 }
 
 async function getUserHandle(req, res) {
-    //todo
+    try {
+        let { search, page } = req.query;
+        let result = await sql.searchUser(search, page)
+        res.json({ 'status': 'success', 'data': result });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
 }
 //** 添加活动处理 */
 async function addActivityHandle(req, res) {
@@ -161,5 +169,6 @@ module.exports = {
     getMostRecentlyActivityHandle,
     searchActivityHandle,
     addUserHandle,
+    getUserHandle,
     updateUserHandle
 }

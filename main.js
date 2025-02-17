@@ -33,6 +33,7 @@ app.get('/user', middleware.userPermissionCheckMiddleware, handle.getUserHandle)
 app.post("/activity", middleware.activityPermissionCheckMiddleware, handle.addActivityHandle);
 app.get("/activity", middleware.activityPermissionCheckMiddleware, handle.searchActivityHandle());
 app.get('/activity/recently', handle.getMostRecentlyActivityHandle);
+app.get('activity/download', handle.downloadActivityHandle);
 
 
 

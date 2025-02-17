@@ -505,6 +505,7 @@ module.exports = {
     dropUser,
     userPermissionChange,
     userPasswordExamine,
+    searchUser,
     getMostRecentlyActivity,
     userPermissionChange,
     userPasswordExamine,
