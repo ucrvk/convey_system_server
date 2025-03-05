@@ -45,7 +45,8 @@ const User = sequelize.define('User', {
     },
     avatar: {
         type: DataTypes.STRING, // 头像地址
-        allowNull: true
+        allowNull: true,
+        defaultValue: "https://i.postimg.cc/3xkKhVP1/avatar.png"
     }
 }, {
     timestamps: true
