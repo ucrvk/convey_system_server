@@ -18,7 +18,7 @@ const User = sequelize.define('User', {
     hashedPassword: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"//123456
+        defaultValue: "1368c6bd8da6299d880dbef46b2c1a4aff68fd21ccc301dbbcf24dd9297094b9"// 密码：XY-123456
     },
     tmpID: {
         type: DataTypes.INTEGER,
@@ -42,6 +42,10 @@ const User = sequelize.define('User', {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0
+    },
+    avatar: {
+        type: DataTypes.STRING, // 头像地址
+        allowNull: true
     }
 }, {
     timestamps: true
@@ -75,6 +79,7 @@ async function superUserAutoUpdate() {
         id: 1,
         userid: SU.USERID,
         hashedPassword: encryptPassword(SU.PASSWORD),
+        QQID: SU.QQID,
         userPermissionLevel: 0b1111
     })
 }
@@ -84,23 +89,24 @@ async function getUserByID(id) {
 }
 
 /** 异步更新用户信息，操作用户密码，权限，积分需要使用专门函数 */
-async function updateUser(id, userid, tmpID, QQID, isEnable) {
+async function updateUser(id, updateData) {
     try {
-        await User.update({
-            userid: userid,
-            tmpID: tmpID,
-            QQID: QQID,
-            isEnable: isEnable
-        }, {
+        const result = await User.update(updateData, {
             where: {
                 id: id
             }
-        })
-        return true;
-    }
-    catch (error) {
-        console.error(error)
-        return false
+        });
+
+        // 检查更新是否成功
+        if (result && result[0] > 0) {
+            return true;
+        } else {
+            console.log('No rows were updated');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error updating user:', error);
+        return false;
     }
 }
 
@@ -170,6 +176,27 @@ async function dropUser(id) {
         return false
     }
 }
+
+async function dropUsers(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return false;
+    }
+
+    try {
+        const result = await User.destroy({
+            where: {
+                id: {
+                    [Op.in]: ids // 使用 Op.in 操作符来匹配数组中的值
+                }
+            }
+        });
+        return result > 0; // 返回是否删除成功
+    } catch (error) {
+        console.error("Error deleting users:", error);
+        return false;
+    }
+}
+
 /**
  * 智能搜索目标，同时搜索userid,tmpid,qqid
  * @param {*} searchID 可选项，有值时搜索所有userid,tmpid,qqid中有一个满足的用户，无值时返回所有用户
@@ -177,65 +204,89 @@ async function dropUser(id) {
  * @returns {Promise<User[]>} 返回用户数组
  */
 async function searchUser(searchID, page) {
-    const pageSize = 10
+    const pageSize = 10;
     let totalNumber;
     let result;
+
     if (!searchID) {
-        totalNumber = await User.count()
-        result = await User.findAll({
-            offset: (page - 1) * pageSize,
-            limit: pageSize
-        })
-    }
-    else {
+        totalNumber = await User.count();
+        let options = {};
+        // 仅在 page 有效时应用分页
+        if (typeof page !== 'undefined' && !isNaN(page)) {
+            options.offset = (page - 1) * pageSize;
+            options.limit = pageSize;
+        }
+        result = await User.findAll(options);
+    } else {
+        // 原有处理 searchID 的代码保持不变
         totalNumber = await User.count({
             where: {
                 [Op.or]: [
-                    { userid: searchID },
-                    { tmpID: searchID },
-                    { QQID: searchID }
-                ]
+                { userid: searchID },
+                { tmpID: searchID },
+                { QQID: searchID }
+            ]
             }
-        })
+        });
         result = await User.findAll({
             where: {
                 [Op.or]: [
-                    { userid: searchID },
-                    { tmpID: searchID },
-                    { QQID: searchID }
-                ]
+                { userid: searchID },
+                { tmpID: searchID },
+                { QQID: searchID }
+            ]
             },
             offset: (page - 1) * pageSize,
             limit: pageSize
-        })
+        });
     }
-    if (page) return { 'totalNumber': totalNumber, 'totalPage': Math.ceil(totalNumber / pageSize), 'result': result };
-    return { "totalNumber": totalNumber, "result": result }
+
+    // 返回结果
+    if (typeof page !== 'undefined' && !isNaN(page)) {
+        return { totalNumber, totalPage: Math.ceil(totalNumber / pageSize), result };
+    }
+    return { totalNumber, result };
 }
 
 /**
  * @async
- * @param {number} userid 用户id是用户id，不是id
- * @param {string} password 密码由客户端加密，而非服务端
+ * @param {Object} loginInfo - 登录信息对象，包含 userid 或 QQID 和 password
+ * @param {number} [loginInfo.userid] - 用户id
+ * @param {string} [loginInfo.QQID] - 用户的QQID
+ * @param {string} loginInfo.password - 密码由客户端加密，而非服务端
  * @returns {Promise<number>} 正确返回id，错误返回0，用户被禁用返回-1，数据库错误返回-2
  */
-async function userPasswordExamine(userid, password) {
-    try {
-        const user = await User.findOne({
-            where: {
-                userid: userid
-            }
-        })
-        if (user == null) return 0
-        if (user.hashedPassword == password) {
-            if (user.isEnable == false) return -1
-            return user.id
-        }
-        return 0
+async function userPasswordExamine(loginInfo) {
+    const { userid, QQID, password } = loginInfo;
+
+    if (!userid && !QQID) {
+        return -3; // 表示没有提供有效的登录凭证
     }
-    catch (error) {
-        console.error(error)
-        return -2
+
+    try {
+        let user;
+        if (userid) {
+            user = await User.findOne({
+                where: {
+                    userid: userid
+                }
+            });
+        } else if (QQID) {
+            user = await User.findOne({
+                where: {
+                    QQID: QQID
+                }
+            });
+        }
+
+        if (user == null) return 0; // 用户不存在
+        if (user.hashedPassword !== password) return 0; // 密码不匹配
+        if (!user.isEnable) return -1; // 用户被禁用
+
+        return user.id; // 返回用户ID
+    } catch (error) {
+        console.error(error);
+        return -2; // 数据库错误
     }
 }
 
@@ -255,13 +306,25 @@ const Activity = sequelize.define('Activity', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    activityDate: {
+        type: DataTypes.DATEONLY, // 仅包含日期（年-月-日）
+        allowNull: false
+    },
     startTime: {
-        type: DataTypes.DATE,
+        type: DataTypes.TIME, // 仅包含时间（时:分:秒）
         allowNull: false
     },
     endTime: {
-        type: DataTypes.DATE,
+        type: DataTypes.TIME, // 仅包含时间（时:分:秒）
         allowNull: false
+    },
+    meetingLocation: {
+        type: DataTypes.STRING, // 集合地点
+        allowNull: true
+    },
+    finalDestination: {
+        type: DataTypes.STRING, // 最终终点
+        allowNull: true
     },
     score: {
         type: DataTypes.INTEGER,
@@ -277,52 +340,93 @@ const Activity = sequelize.define('Activity', {
         type: DataTypes.TEXT,
         allowNull: true,
         defaultValue: '["dlc_balkan_w.scs","dlc_feldbinder.scs","dlc_krone.scs","dlc_iberia.scs","dlc_north.scs","dlc_balt.scs","dlc_fr.scs","dlc_it.scs","dlc_east.scs","dlc_balkan_e.scs","dlc_greece.scs"]'
+    },
+    routeURL: { // 新增的路线 URL 字段
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    parkingSpotURL: { // 新增的车位 URL 字段
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    detailOneURL: { // 新增的细节一 URL 字段
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    detailTwoURL: { // 新增的细节二 URL 字段
+        type: DataTypes.STRING,
+        allowNull: true
     }
 })
 
-async function addActivity(name, server, startTime, endTime, score) {
+async function addActivity(name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL) {
     try {
+        // 去掉时间中的秒部分
+        function removeSeconds(time) {
+            const [hours, minutes] = time.split(':').slice(0, 2);
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        }
+
+        // 处理时间和日期
+        startTime = removeSeconds(startTime);
+        endTime = removeSeconds(endTime);
+
+        // 创建活动记录
         await Activity.create({
             name: name,
             server: server,
-            startTime: startTime,
-            endTime: endTime,
+            activityDate: activityDate, // 新增字段
+            startTime: startTime, // 已去除秒的部分
+            endTime: endTime, // 已去除秒的部分
+            meetingLocation: meetingLocation, // 新增字段
+            finalDestination: finalDestination, // 新增字段
             score: score,
-        })
+            isEnable: true, // 默认值为true
+            routeURL: routeURL, // 新增字段
+            parkingSpotURL: parkingSpotURL, // 新增字段
+            detailOneURL: detailOneURL, // 新增字段
+            detailTwoURL: detailTwoURL // 新增字段
+        });
         return true;
-    }
-    catch (error) {
-        console.error(error)
-        return false
+    } catch (error) {
+        console.error('创建活动记录时发生错误:', error);
+        return false;
     }
 }
 
 
 /**
- * 异步获取最近活动项目
- * @returns {Promise<Activity|0|-1>} 正确返回活动对象，没有活动返回0，数据库错误返回-1
+ * 异步获取当天的最近活动项目
+ * @returns {Promise<Activity|number>} 正确返回活动对象，没有活动返回0，数据库错误返回-1
  */
 async function getMostRecentlyActivity() {
     try {
-        let now = new Date();
-        let res = await Activity.findOne({
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+        // 查找当天的最近活动记录，按 id 降序排列并取第一条记录
+        const res = await Activity.findOne({
             where: {
-                endtime: {
-                    [Op.gt]: now
+                activityDate: {
+                    [Op.between]: [startOfDay, endOfDay]  // 活动日期在当天范围内
                 }
             },
             order: [
-                ['endTime', 'ASC']
+                ['id', 'DESC']  // 按 id 降序排列
             ]
-        })
-        if (res == null) return 0;
+        });
+
+        if (!res) {
+            console.log('未找到符合条件的活动记录');
+            return 0;
+        }
+
         return res;
-    }
-    catch (error) {
-        console.error(error)
+    } catch (error) {
+        console.error('获取最近活动时发生错误:', error);
         return -1;
     }
-
 }
 
 //积分统计相关
@@ -496,6 +600,7 @@ async function purchaseItem(goodsID, ID) {
     }
 }
 module.exports = {
+    User,
     createUser,
     getUserByID,
     superUserAutoUpdate,
@@ -503,12 +608,11 @@ module.exports = {
     updatePassword,
     updateScore,
     dropUser,
+    dropUsers,
     userPermissionChange,
     userPasswordExamine,
     searchUser,
     getMostRecentlyActivity,
     userPermissionChange,
-    userPasswordExamine,
-    getMostRecentlyActivity,
     addActivity,
 }

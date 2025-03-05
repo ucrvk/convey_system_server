@@ -2,11 +2,12 @@
     "WORKING_PORT":3000,
     "JWT":{
         "SECRET":"secret",
-        "EXPIRED_TIME":"8h"
+        "EXPIRED_TIME":"6h"
     },
     "SU":{
         "USERID":1,
-        "PASSWORD":"123456"
+        "QQID":"2179452095",
+        "PASSWORD":"Su-jiner123"
     },
     "DB":{
         "dialect":"sqlite",
