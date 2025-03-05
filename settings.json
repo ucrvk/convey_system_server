@@ -7,7 +7,7 @@
     "SU":{
         "USERID":1,
         "QQID":"2179452095",
-        "PASSWORD":"Su-jiner123"
+        "PASSWORD":"Admin-123"
     },
     "DB":{
         "dialect":"sqlite",
