@@ -33,8 +33,8 @@ async function loginHandle(req, res) {
             try {
                 let token = jwtSign(result);
                 let user = await sql.getUserByID(result);
-                const { id, userid, tmpID, QQID, userPermissionLevel, score, avatar } = user;
-                let userWithoutPassword = { id, userid, tmpID, QQID, userPermissionLevel, score, avatar };
+                const { id, userid, tmpID, QQID, userPermissionLevel, adminRole, score, avatar } = user;
+                let userWithoutPassword = { id, userid, tmpID, QQID, userPermissionLevel, adminRole, score, avatar };
                 return res.json({ status: 'success', msg: '登录成功', token, user: userWithoutPassword });
             } catch (err) {
                 console.error('Error during JWT generation:', err);
@@ -85,7 +85,7 @@ async function addUserHandle(req, res) {
 
 async function updateUserHandle(req, res) {
     try {
-        let { userid, QQID, tmpID, isEnable, avatar } = req.body;
+        let { userid, QQID, tmpID, isEnable, avatar, adminRole, userPermissionLevel } = req.body;
 
         // 如果没有提供 isEnable，默认为 true
         if (isEnable === undefined) isEnable = true;
@@ -103,10 +103,12 @@ async function updateUserHandle(req, res) {
 
         // 构建更新数据对象
         const updateData = {};
-        if (avatar !== undefined) updateData.avatar = avatar;
-        if (QQID !== undefined) updateData.QQID = QQID;
-        if (tmpID !== undefined) updateData.tmpID = tmpID;
-        if (isEnable !== undefined) updateData.isEnable = isEnable;
+        if (avatar !== undefined && avatar !== null) updateData.avatar = avatar;
+        if (QQID !== undefined && QQID !== null) updateData.QQID = QQID;
+        if (tmpID !== undefined && tmpID !== null) updateData.tmpID = tmpID;
+        if (isEnable !== undefined) updateData.isEnable = Boolean(isEnable); // 强制转换为布尔值
+        if (adminRole !== undefined && adminRole !== null) updateData.adminRole = adminRole;
+        if (userPermissionLevel !== undefined && userPermissionLevel !== null) updateData.userPermissionLevel = userPermissionLevel;
 
         // 只有当存在要更新的数据时才调用 updateUser
         if (Object.keys(updateData).length > 0) {
@@ -186,8 +188,8 @@ async function getUserHandle(req, res) {
         
         // 过滤敏感字段并提取所需信息
         const users = result.result.map(user => {
-            const { id, userid, tmpID, QQID, userPermissionLevel, score, isEnable } = user;
-            return { id, userid, tmpID, QQID, userPermissionLevel, score, isEnable };
+            const { id, userid, tmpID, QQID, userPermissionLevel, adminRole, score, isEnable } = user;
+            return { id, userid, tmpID, QQID, userPermissionLevel, adminRole, score, isEnable };
         });
 
         res.json({ 

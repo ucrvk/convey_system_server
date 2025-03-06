@@ -4,21 +4,33 @@ const { encryptPassword } = require('./secure')
 const sequelize = new Sequelize(DB);
 const os = require('os')
 
+
 const User = sequelize.define('User', {
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
+        allowNull: false
     },
     userid: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING, // 使用字符串类型以支持任意长度
         allowNull: false,
-        unique: true
+        unique: true,
+        get() {
+            const rawValue = this.getDataValue('userid');
+            return rawValue !== undefined && rawValue !== null ? rawValue.padStart(3, '0') : ''; // 处理 undefined 和 null
+        },
+        set(value) {
+            if (typeof value === 'number') {
+                value = value.toString().padStart(3, '0'); // 转换为字符串并添加前导零
+            }
+            this.setDataValue('userid', value);
+        }
     },
     hashedPassword: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: "1368c6bd8da6299d880dbef46b2c1a4aff68fd21ccc301dbbcf24dd9297094b9"// 密码：XY-123456
+        defaultValue: "1368c6bd8da6299d880dbef46b2c1a4aff68fd21ccc301dbbcf24dd9297094b9" // 密码：XY-123456
     },
     tmpID: {
         type: DataTypes.INTEGER,
@@ -32,6 +44,11 @@ const User = sequelize.define('User', {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0
+    },
+    adminRole: {
+        type: DataTypes.STRING, // 添加管理职位字段
+        allowNull: true,
+        defaultValue: "俱乐部成员"
     },
     isEnable: {
         type: DataTypes.BOOLEAN,
@@ -81,7 +98,8 @@ async function superUserAutoUpdate() {
         userid: SU.USERID,
         hashedPassword: encryptPassword(SU.PASSWORD),
         QQID: SU.QQID,
-        userPermissionLevel: 0b1111
+        userPermissionLevel: 0b1111,
+        adminRole: "技术团队副主管"
     })
 }
 
