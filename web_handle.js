@@ -1,6 +1,6 @@
 const { jwtSign } = require('./secure');
 const sql = require('./sql');
-const { userPermissionCheckMiddleware } = require("./middleware")
+const { userPermissionCheckMiddleware, scorePermissionCheckMiddleware } = require("./middleware")
 const { upload } = require('./file_upload');
 const path = require('path');
 const fs = require('fs');
@@ -43,87 +43,228 @@ async function loginHandle(req, res) {
     }
 }
 
-async function updatePasswordHandle(req, res) {
-    async function updatePassword(req, res) {
-        let result = await sql.updatePassword(req.body.target, req.body.newPassword);
+async function updateAvatarHandle(req, res) {
+    async function updateAvatar(id, newAvatarUrl) {
+        let result = await sql.updateAvatar(id, newAvatarUrl);
         if (result) {
-            res.json({ 'status': 'success', 'msg': '密码修改成功' });
-        }
-        else {
-            console.error(err);
+            res.json({ 'status': 'success', 'msg': '头像修改成功' });
+        } else {
+            console.error('数据库操作未返回预期结果');
             res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
         }
     }
+
     try {
-        if (!req.body.target || req.body.newPassword) res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
-        else if (req.body.operator != req.body.target) await userPermissionCheckMiddleware(req, res, updatePassword);
-        else await updatePassword(req.body.target, req.body.newPassword);
-    }
-    catch (err) {
-        console.error(err);
+        const { id, newAvatarUrl } = req.body;
+        const operator = req.query.operator;
+
+        console.log('收到请求:', req.body, '查询参数:', req.query);
+
+        if (!id || !newAvatarUrl) {
+            console.error('缺少必要参数');
+            return res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        }
+
+        if (operator !== id) {
+            console.log('用户权限检查...');
+            await userPermissionCheckMiddleware(req, res, () => updateAvatar(id, newAvatarUrl));
+        } else {
+            console.log('直接更新头像...');
+            await updateAvatar(id, newAvatarUrl);
+        }
+    } catch (err) {
+        console.error('服务器未知错误:', err);
         res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
     }
 }
+
+async function updateScoreHandle(req, res) {
+    async function updateScore(id, newScore) {
+        let result = await sql.updateScore(id, newScore);
+        if (result) {
+            res.json({ 'status': 'success', 'msg': '积分更新成功' });
+        } else {
+            console.error('数据库操作未返回预期结果');
+            res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+        }
+    }
+
+    try {
+        const { id, newScore } = req.body;
+        const operator = req.query.operator;
+
+        console.log('收到请求:', req.body, '查询参数:', req.query);
+
+        if (!id || !newScore) {
+            console.error('缺少必要参数');
+            return res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        }
+
+        if (operator !== id) {
+            console.log('用户权限检查...');
+            await scorePermissionCheckMiddleware(req, res, () => updateScore(id, newScore));
+        } else {
+            console.log('直接更新积分...');
+            await updateScore(id, newScore);
+        }
+    } catch (err) {
+        console.error('服务器未知错误:', err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
+
+async function updatePasswordHandle(req, res) {
+    async function updatePassword(id, newPassword) {
+        let result = await sql.updatePassword(id, newPassword);
+        if (result) {
+            res.json({ 'status': 'success', 'msg': '密码修改成功' });
+        } else {
+            console.error('数据库操作未返回预期结果');
+            res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+        }
+    }
+
+    try {
+        const { id, newPassword } = req.body;
+        const operator = req.query.operator;
+
+        console.log('收到请求:', req.body, '查询参数:', req.query);
+
+        if (!id || !newPassword) {
+            console.error('缺少必要参数');
+            return res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        }
+
+        if (operator !== id) {
+            console.log('用户权限检查...');
+            await userPermissionCheckMiddleware(req, res, () => updatePassword(id, newPassword));
+        } else {
+            console.log('直接更新密码...');
+            await updatePassword(id, newPassword);
+        }
+    } catch (err) {
+        console.error('服务器未知错误:', err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
+    }
+}
+
 async function addUserHandle(req, res) {
     try {
         let { userid, QQID, tmpID } = req.body;
-        if (!userid) res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
-        else {
-            let result = await sql.createUser(userid, tmpID, QQID);
-            switch (result) {
-                case (2): res.status(409).json({ 'status': 'error', 'msg': '用户已存在' }); break;
-                case (1): res.status(500).json({ 'status': 'error', 'msg': '数据库错误' }); break;
-                case (0): res.json({ 'status': 'success', 'msg': '用户添加成功' }); break;
-            }
+
+        // 检查必需参数
+        if (!userid || !QQID) {
+            return res.status(400).json({ 'status': 'error', 'msg': '确保已填写用户 ID 和 QQ' });
         }
-    }
-    catch (err) {
-        console.error(err);
+
+        // 调用 createUser 函数并获取结果
+        let result = await sql.createUser(userid, tmpID, QQID);
+
+        // 根据返回值进行响应处理
+        switch (result) {
+            case 0:
+                res.json({ 'status': 'success', 'msg': '用户添加成功' });
+                break;
+            case 1:
+                res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+                break;
+            case 2:
+                res.status(409).json({ 'status': 'error', 'msg': '用户 ID 已存在' });
+                break;
+            case 3:
+                res.status(409).json({ 'status': 'error', 'msg': 'QQID 已存在' });
+                break;
+            default:
+                res.status(500).json({ 'status': 'error', 'msg': '未知错误' });
+                break;
+        }
+    } catch (err) {
+        console.error('服务器未知错误:', err);
         res.status(500).json({ 'status': 'error', 'msg': '服务器未知错误' });
     }
 }
 
 async function updateUserHandle(req, res) {
     try {
-        let { userid, QQID, tmpID, isEnable, avatar, adminRole, userPermissionLevel } = req.body;
+        const { operator } = req.query; // 获取操作者 ID
+        const updateData = req.body; // 获取请求体中的数据
 
-        // 如果没有提供 isEnable，默认为 true
-        if (isEnable === undefined) isEnable = true;
-
-        // 如果没有提供 userid，返回错误
-        if (!userid) {
-            return res.status(400).json({ 'status': 'error', 'msg': '参数错误' });
+        // 如果没有提供操作者 ID，返回错误
+        if (!operator) {
+            return res.status(400).json({ status: 'error', msg: '操作者 ID 不能为空' });
         }
 
-        // 查找用户ID
-        const userRecord = await sql.User.findOne({ where: { userid: userid } }); // 使用不同的变量名
-        if (!userRecord) {
-            return res.status(404).json({ 'status': 'error', 'msg': '用户不存在' });
-        }
+        // 检查请求体是否是数组（批量操作）
+        if (Array.isArray(updateData)) {
+            // 批量更新逻辑
+            const results = [];
+            for (const data of updateData) {
+                const { id, userid, isEnable } = data;
 
-        // 构建更新数据对象
-        const updateData = {};
-        if (avatar !== undefined && avatar !== null) updateData.avatar = avatar;
-        if (QQID !== undefined && QQID !== null) updateData.QQID = QQID;
-        if (tmpID !== undefined && tmpID !== null) updateData.tmpID = tmpID;
-        if (isEnable !== undefined) updateData.isEnable = Boolean(isEnable); // 强制转换为布尔值
-        if (adminRole !== undefined && adminRole !== null) updateData.adminRole = adminRole;
-        if (userPermissionLevel !== undefined && userPermissionLevel !== null) updateData.userPermissionLevel = userPermissionLevel;
+                // 检查必要的字段
+                if (!id || !userid || isEnable === undefined) {
+                    results.push({ id, userid, status: 'error', msg: '参数错误' });
+                    continue;
+                }
 
-        // 只有当存在要更新的数据时才调用 updateUser
-        if (Object.keys(updateData).length > 0) {
-            let result = await sql.updateUser(userRecord.id, updateData); // 使用正确的变量名
-            if (result) {
-                res.json({ 'status': 'success', 'msg': '用户更新成功' });
-            } else {
-                res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+                // 查找用户
+                const userRecord = await sql.User.findOne({ where: { id, userid } });
+                if (!userRecord) {
+                    results.push({ id, userid, status: 'error', msg: '用户不存在' });
+                    continue;
+                }
+
+                // 更新用户状态
+                const result = await sql.updateUser(id, { isEnable: Boolean(isEnable) });
+                if (result) {
+                    results.push({ id, userid, status: 'success', msg: '用户状态更新成功' });
+                } else {
+                    results.push({ id, userid, status: 'error', msg: '数据库错误' });
+                }
             }
+
+            // 返回批量操作结果
+            return res.json({ status: 'success', data: results });
         } else {
-            res.status(400).json({ 'status': 'error', 'msg': '没有需要更新的数据' });
+            // 单个用户更新逻辑
+            const { id, userid, QQID, tmpID, isEnable, avatar, adminRole, userPermissionLevel } = updateData;
+
+            // 检查必要的字段
+            if (!id || !userid) {
+                return res.status(400).json({ status: 'error', msg: '参数错误' });
+            }
+
+            // 查找用户
+            const userRecord = await sql.User.findOne({ where: { id, userid } });
+            if (!userRecord) {
+                return res.status(404).json({ status: 'error', msg: '用户不存在' });
+            }
+
+            // 构建更新数据对象
+            const updateFields = {};
+            if (avatar !== undefined && avatar !== null) updateFields.avatar = avatar;
+            if (QQID !== undefined && QQID !== null) updateFields.QQID = QQID;
+            if (tmpID !== undefined && tmpID !== null) updateFields.tmpID = tmpID;
+            if (isEnable !== undefined) updateFields.isEnable = Boolean(isEnable);
+            if (adminRole !== undefined && adminRole !== null) updateFields.adminRole = adminRole;
+            if (userPermissionLevel !== undefined && userPermissionLevel !== null) updateFields.userPermissionLevel = userPermissionLevel;
+
+            // 如果没有需要更新的字段，返回错误
+            if (Object.keys(updateFields).length === 0) {
+                return res.status(400).json({ status: 'error', msg: '没有需要更新的数据' });
+            }
+
+            // 更新用户数据
+            const result = await sql.updateUser(id, updateFields);
+            if (result) {
+                return res.json({ status: 'success', msg: '用户更新成功' });
+            } else {
+                return res.status(500).json({ status: 'error', msg: '数据库错误' });
+            }
         }
     } catch (err) {
         console.error(err);
-        res.status(500).json({ 'status': 'error', 'msg': '服务器有未知错误' });
+        return res.status(500).json({ status: 'error', msg: '服务器内部错误' });
     }
 }
 
@@ -207,10 +348,10 @@ async function getUserHandle(req, res) {
 async function addActivityHandle(req, res) {
     try {
         // 从请求体中获取所有需要的参数
-        let { name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL } = req.body;
+        let { name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL, fileName } = req.body;
 
         // 检查必需的参数是否都存在
-        if (!name || !activityDate || !startTime || !endTime || !score || !routeURL || !parkingSpotURL || !detailOneURL || !detailTwoURL) {
+        if (!name || !activityDate || !startTime || !endTime || !score || !routeURL || !parkingSpotURL || !detailOneURL || !detailTwoURL || !fileName) {
             return res.status(400).json({ 'status': 'error', 'msg': '缺少必要参数' });
         }
 
@@ -225,7 +366,7 @@ async function addActivityHandle(req, res) {
         endTime = removeSeconds(endTime);
 
         // 调用SQL方法添加活动
-        let result = await sql.addActivity(name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL);
+        let result = await sql.addActivity(name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL, fileName);
 
         if (result) {
             res.json({ 'status': 'success', 'msg': '活动添加成功' });
@@ -234,6 +375,30 @@ async function addActivityHandle(req, res) {
         }
     } catch (err) {
         console.error('添加活动时发生错误:', err);
+        res.status(500).json({ 'status': 'error', 'msg': '服务器内部错误' });
+    }
+}
+
+async function addActivityFileHandle(req, res) {
+    try {
+        // 从请求体中获取 fileName 参数
+        const { fileName } = req.body;
+
+        // 检查 fileName 是否存在
+        if (!fileName) {
+            return res.status(400).json({ 'status': 'error', 'msg': '缺少文件名参数' });
+        }
+
+        // 调用 SQL 方法，仅保存 fileName
+        const result = await sql.addActivityFile(fileName);
+
+        if (result) {
+            res.json({ 'status': 'success', 'msg': '文件名保存成功' });
+        } else {
+            res.status(500).json({ 'status': 'error', 'msg': '数据库错误' });
+        }
+    } catch (err) {
+        console.error('保存文件名时发生错误:', err);
         res.status(500).json({ 'status': 'error', 'msg': '服务器内部错误' });
     }
 }
@@ -417,8 +582,11 @@ async function downloadFileHandle(req, res) {
 
 module.exports = {
     loginHandle,
+    updateAvatarHandle,
+    updateScoreHandle,
     updatePasswordHandle,
     addActivityHandle,
+    addActivityFileHandle,
     dropUserHandle,
     downloadFileHandle,
     uploadFileHandle,

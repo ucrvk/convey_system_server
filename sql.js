@@ -38,7 +38,8 @@ const User = sequelize.define('User', {
     },
     QQID: {
         type: DataTypes.INTEGER,
-        allowNull: true
+        allowNull: true,
+        unique: true
     },
     userPermissionLevel: {
         type: DataTypes.INTEGER,
@@ -74,7 +75,7 @@ const User = sequelize.define('User', {
  * @param {number} userid 用户id
  * @param {number} tmpID tmpID
  * @param {number} QQID QQ号
- * @returns 0成功，1数据库未知错误，2用户已存在
+ * @returns 0成功，1数据库未知错误，2用户ID已存在，3QQID已存在
  */
 async function createUser(userid, tmpID, QQID) {
     try {
@@ -82,12 +83,22 @@ async function createUser(userid, tmpID, QQID) {
             userid: userid,
             tmpID: tmpID,
             QQID: QQID
-        })
-        return 0
-    }
-    catch (error) {
-        if (error instanceof Sequelize.UniqueConstraintError) return 2
-        return 1
+        });
+        return 0; // 成功创建用户
+    } catch (error) {
+        if (error instanceof Sequelize.UniqueConstraintError) {
+            // 解析错误信息以确定哪个字段引发了唯一性冲突
+            const errors = error.errors;
+            for (const err of errors) {
+                if (err.path === 'userid') {
+                    return 2; // 用户 ID 已存在
+                } else if (err.path === 'QQID') {
+                    return 3; // QQID 已存在
+                }
+            }
+            return 1; // 其他唯一性冲突
+        }
+        return 1; // 其他类型的错误
     }
 }
 /** 数据库初始化和超级用户注册*/
@@ -126,6 +137,42 @@ async function updateUser(id, updateData) {
     } catch (error) {
         console.error('Error updating user:', error);
         return false;
+    }
+}
+
+/** 更新用户头像 */
+async function updateAvatar(id, newAvatar) {
+    try {
+        await User.update({
+            avatar: newAvatar
+        }, {
+            where: {
+                id: id
+            }
+        })
+        return true;
+    }
+    catch (error) {
+        console.error(error)
+        return false
+    }
+}
+
+/** 更新用户积分 */
+async function updateScore(id, addScore) {
+    try {
+        await User.update({
+            score: addScore
+        }, {
+            where: {
+                id: id
+            }
+        })
+        return true;
+    }
+    catch (error) {
+        console.error(error)
+        return false
     }
 }
 
@@ -375,10 +422,15 @@ const Activity = sequelize.define('Activity', {
     detailTwoURL: { // 新增的细节二 URL 字段
         type: DataTypes.STRING,
         allowNull: true
+    },
+    fileName: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 })
 
-async function addActivity(name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL) {
+// 添加活动记录
+async function addActivity(name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL, fileName) {
     try {
         // 去掉时间中的秒部分
         function removeSeconds(time) {
@@ -404,7 +456,8 @@ async function addActivity(name, server, activityDate, startTime, endTime, meeti
             routeURL: routeURL, // 新增字段
             parkingSpotURL: parkingSpotURL, // 新增字段
             detailOneURL: detailOneURL, // 新增字段
-            detailTwoURL: detailTwoURL // 新增字段
+            detailTwoURL: detailTwoURL, // 新增字段
+            fileName: fileName // 保存文件名
         });
         return true;
     } catch (error) {
@@ -413,6 +466,31 @@ async function addActivity(name, server, activityDate, startTime, endTime, meeti
     }
 }
 
+async function addActivityFile(fileName) {
+    try {
+        // 查找最新活动的 ID
+        const latestActivity = await Activity.findOne({
+            order: [['id', 'DESC']] // 按 ID 降序排列，获取最新活动
+        });
+
+        if (!latestActivity) {
+            console.error('未找到任何活动记录');
+            return false;
+        }
+
+        // 更新最新活动的 fileName
+        await Activity.update(
+            { fileName: fileName }, // 更新的字段
+            { where: { id: latestActivity.id } } // 更新的条件
+        );
+
+        console.log('文件名更新成功:', fileName);
+        return true;
+    } catch (error) {
+        console.error('更新文件名时发生错误:', error);
+        return false;
+    }
+}
 
 /**
  * 异步获取当天的最近活动项目
@@ -624,6 +702,7 @@ module.exports = {
     getUserByID,
     superUserAutoUpdate,
     updateUser,
+    updateAvatar,
     updatePassword,
     updateScore,
     dropUser,
@@ -634,4 +713,5 @@ module.exports = {
     getMostRecentlyActivity,
     userPermissionChange,
     addActivity,
+    addActivityFile,
 }

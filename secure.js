@@ -1,7 +1,6 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { JWT } = require('./settings.json')
-const { getUserByID } = require('./sql')
 /**sha256无盐加密*/
 function encryptPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
@@ -35,15 +34,32 @@ function jwtVerify(token, id) {
  * @param {number} permissionLevel 权限等级
  * @returns {boolean} 是否拥有权限
  */
+const PERMISSION_BITS = {
+    activity: 1, // 第1位
+    score: 2,    // 第2位
+    user: 3      // 第3位
+};
+
 function userPermissionLevelCheck(permissionName, permissionLevel) {
-    if (permissionName === 'super' && permissionLevel === 15) return true;
-    let bytePermissionLevel = permissionLevel.toString(2).padStart(4, '0')
-    switch (permissionName) {
-        case 'activity': return bytePermissionLevel[1] === '1';
-        case 'score': return bytePermissionLevel[2] === '1';
-        case 'user': return bytePermissionLevel[3] === '1';
-        default: return false;
+    if (typeof permissionLevel !== 'number' || permissionLevel < 0 || permissionLevel > 15) {
+        console.error('无效的权限级别:', permissionLevel);
+        return false;
     }
+
+    if (permissionName === 'super') {
+        return permissionLevel === 15; // 超级管理员权限级别为15 (二进制: 1111)
+    }
+
+    const bitPosition = PERMISSION_BITS[permissionName];
+
+    if (bitPosition === undefined) {
+        console.error('未知的权限名称:', permissionName);
+        return false;
+    }
+
+    // 计算对应位是否为1
+    // 使用按位与操作来检查特定位置的位是否为1
+    return (permissionLevel & (1 << bitPosition)) !== 0;
 }
 
 

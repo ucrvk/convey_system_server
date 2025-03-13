@@ -37,19 +37,22 @@ app.post('/login', handle.loginHandle);
 app.use(middleware.loginCheckMiddleware);
 
 // 用户类路由
-app.post('/user/updatepassword', handle.updatePasswordHandle);
+app.post('/user/updatepassword', middleware.loginCheckMiddleware, handle.updatePasswordHandle);
 app.post("/user", middleware.userPermissionCheckMiddleware, handle.addUserHandle);
 app.put('/user', middleware.userPermissionCheckMiddleware, handle.updateUserHandle);
 app.delete('/user', middleware.userPermissionCheckMiddleware, handle.dropUserHandle);
-app.get('/user', middleware.userPermissionCheckMiddleware, handle.getUserHandle);
+app.get('/user', middleware.loginCheckMiddleware, handle.getUserHandle);
+app.post("/user/update-avatar", middleware.loginCheckMiddleware, handle.updateAvatarHandle);
+app.post("/user/update-score", middleware.scorePermissionCheckMiddleware, handle.updateScoreHandle);
 
 // 活动类路由
 app.post("/activity", middleware.activityPermissionCheckMiddleware, handle.addActivityHandle);
+app.post("/activity/file", middleware.activityPermissionCheckMiddleware, handle.addActivityFileHandle);
 app.get("/activity", middleware.activityPermissionCheckMiddleware, handle.searchActivityHandle);
 app.get('/activity/recently', handle.getMostRecentlyActivityHandle);
 
 // 文件上传路由
-app.post('/file/upload', middleware.loginCheckMiddleware, handle.uploadFileHandle);
+app.post('/file/upload', middleware.loginCheckMiddleware, middleware.activityPermissionCheckMiddleware, handle.uploadFileHandle);
 
 // 文件下载路由
 app.get('/file/download', middleware.loginCheckMiddleware, handle.downloadFileHandle);

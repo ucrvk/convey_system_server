@@ -8,7 +8,7 @@ function loginCheckMiddleware(req, res, next) {
     else next();
 }
 
-/** 检查用户是否有活动管理权限*/
+/** 检查用户是否有活动管理权限 */
 async function activityPermissionCheckMiddleware(req, res, next) {
     try {
         // 获取操作者ID
@@ -19,15 +19,15 @@ async function activityPermissionCheckMiddleware(req, res, next) {
         }
 
         // 获取用户的权限级别
-        let permissionCode = await getUserByID(id);
+        const user = await getUserByID(id);
 
-        if (!permissionCode || !permissionCode.userPermissionLevel) {
+        if (!user || !user.userPermissionLevel) {
             console.error(`无法找到用户ID: ${id} 或其权限信息`);
             return res.status(404).json({ "status": "error", "message": "用户不存在或无权限信息" });
         }
 
         // 权限检查
-        if (userPermissionLevelCheck("user", permissionCode.userPermissionLevel)) {
+        if (userPermissionLevelCheck("activity", user.userPermissionLevel)) {
             next();
         } else {
             res.status(403).json({ "status": "error", "message": "您没有权限" });
@@ -37,6 +37,7 @@ async function activityPermissionCheckMiddleware(req, res, next) {
         res.status(500).json({ "status": "error", "message": "服务器错误" });
     }
 }
+
 /** 检查用户是否有用户管理权限 */
 async function userPermissionCheckMiddleware(req, res, next) {
     try {
@@ -47,19 +48,48 @@ async function userPermissionCheckMiddleware(req, res, next) {
             return res.status(400).json({ "status": "error", "message": "缺少必要参数id" });
         }
 
-        let permissionCode = await getUserByID(id);
+        const user = await getUserByID(id);
         
-        if (!permissionCode || !permissionCode.userPermissionLevel) {
-            return res.status(400).json({ "status": "error", "message": "无效的用户ID" });
+        if (!user || !user.userPermissionLevel) {
+            console.error(`无法找到用户ID: ${id} 或其权限信息`);
+            return res.status(404).json({ "status": "error", "message": "用户不存在或无权限信息" });
         }
 
-        const userPermissionLevelCheck = (role, level) => {
-            // 管理员权限为 15，普通用户权限为 1
-            const REQUIRED_PERMISSION_LEVEL = 15;
-            return level <= REQUIRED_PERMISSION_LEVEL;
-        };
+        // 权限检查
+        if (userPermissionLevelCheck("user", user.userPermissionLevel)) {
+            next();
+        } else {
+            res.status(403).json({ "status": "error", "message": "您没有权限" });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ "status": "error", "message": "服务器错误" });
+    }
+}
 
-        userPermissionLevelCheck("user", permissionCode.userPermissionLevel) ? next() : res.status(403).json({ "status": "error", "message": "您没有权限" });
+/** 检查用户是否有积分管理权限 */
+async function scorePermissionCheckMiddleware(req, res, next) {
+    try {
+        // 从查询字符串中获取 operator 参数
+        const id = req.query.operator;
+        
+        if (!id) {
+            return res.status(400).json({ "status": "error", "message": "缺少必要参数id" });
+        }
+
+        const user = await getUserByID(id);
+        
+        if (!user || !user.userPermissionLevel) {
+            console.error(`无法找到用户ID: ${id} 或其权限信息`);
+            return res.status(404).json({ "status": "error", "message": "用户不存在或无权限信息" });
+        }
+
+        // 权限检查
+        if (userPermissionLevelCheck("score", user.userPermissionLevel)) {
+            next();
+        } else {
+            res.status(403).json({ "status": "error", "message": "您没有权限" });
+        }
     } catch (err) {
         console.error(err);
         res.status(500).json({ "status": "error", "message": "服务器错误" });
@@ -69,5 +99,6 @@ async function userPermissionCheckMiddleware(req, res, next) {
 module.exports = {
     loginCheckMiddleware,
     activityPermissionCheckMiddleware,
-    userPermissionCheckMiddleware
+    userPermissionCheckMiddleware,
+    scorePermissionCheckMiddleware
 }
