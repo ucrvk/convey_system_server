@@ -24,11 +24,7 @@ app.disable('x-powered-by'); // 禁用 X-Powered-By 头
 app.get('/status', (req, res) => res.json(status()));
 
 // 静态文件路由
-app.get('/wives', (req, res) => res.header({ 'cache-control': "public, max-age=86400" }).sendFile(filePath + '/8888.jpg'));
-app.get('/wives/video', (req, res) => res.header({ 'cache-control': "public, max-age=86400" }).sendFile(filePath + '/8888.mp4'));
-
-// 重定向路由
-app.all('/', (req, res) => res.redirect(301, 'https://www.bilibili.com/video/BV1ZUfsYpEXy'));
+app.get('/wives', (req, res) => res.sendFile(filePath + '/8888.jpg'));
 
 // 登录路由
 app.post('/login', handle.loginHandle);
