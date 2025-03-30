@@ -429,6 +429,72 @@ const Activity = sequelize.define('Activity', {
     }
 })
 
+// 定义常量：阈值和需要删除的记录数
+const AUTO_DELETE_THRESHOLD = 10; // 阈值
+const AUTO_DELETE_COUNT = 5; // 删除数量
+
+// 定义自动删除函数
+async function autoDeleteOldData() {
+    const transaction = await sequelize.transaction(); // 开启事务
+    try {
+        console.log('开始检查数据条数...');
+        
+        // 获取当前表中的记录总数
+        const count = await Activity.count({ transaction });
+
+        // 如果记录数超过阈值
+        if (count >= AUTO_DELETE_THRESHOLD) {
+            console.log(`当前记录数为 ${count}，超过阈值 ${AUTO_DELETE_THRESHOLD}，开始删除最早的 ${AUTO_DELETE_COUNT} 条记录...`);
+
+            // 查询最早的 deleteCount 条记录的 ID
+            const oldestRecords = await Activity.findAll({
+                attributes: ['id'], // 只查询 id 字段
+                order: [['createdAt', 'ASC']], // 按创建时间升序排列（最早的数据在前）
+                limit: AUTO_DELETE_COUNT, // 限制返回的记录数
+                transaction // 事务支持
+            });
+
+            // 提取记录的 ID 列表
+            const idsToDelete = oldestRecords.map(record => record.id);
+
+            // 如果没有需要删除的记录，直接返回
+            if (idsToDelete.length === 0) {
+                console.log('未找到需要删除的记录。');
+                return;
+            }
+
+            console.log(`准备删除记录 ID 列表：${idsToDelete}`);
+
+            // 删除这些记录
+            await Activity.destroy({
+                where: {
+                    id: {
+                        [Op.in]: idsToDelete // 使用 Op.in 操作符匹配 ID 列表
+                    }
+                },
+                transaction // 事务支持
+            });
+
+            console.log(`成功删除了 ${idsToDelete.length} 条记录：${idsToDelete}`);
+        } else {
+            console.log(`当前记录数为 ${count}，未达到阈值 ${AUTO_DELETE_THRESHOLD}，无需删除。`);
+        }
+
+        // 提交事务
+        await transaction.commit();
+    } catch (error) {
+        // 回滚事务
+        await transaction.rollback();
+        console.error('自动删除数据时发生错误:', error);
+    }
+}
+
+// 启动定时任务，每小时运行一次
+setInterval(autoDeleteOldData, 60 * 60 * 1000); // 每小时执行一次
+
+// 手动调用一次，立即执行
+autoDeleteOldData();
+
 // 添加活动记录
 async function addActivity(name, server, activityDate, startTime, endTime, meetingLocation, finalDestination, score, routeURL, parkingSpotURL, detailOneURL, detailTwoURL, fileName) {
     try {
@@ -526,62 +592,6 @@ async function getMostRecentlyActivity() {
     }
 }
 
-//积分统计相关
-const ActivityParticipation = sequelize.define('ActivityParticipation', {
-    user: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-    },
-    startTime: {
-        type: DataTypes.DATE,
-        allowNull: false,
-    },
-})
-
-async function startRecord(id) {
-    try {
-        await ActivityParticipation.upsert({
-            user: id,
-            startTime: new Date()
-        })
-        return true;
-    }
-    catch (error) {
-        console.error(error)
-        return false
-    }
-}
-async function adminEndRecord(date) {
-    try {
-        const now = new Date();
-        const usersBeforeDate = await ActivityParticipation.findAll({
-            attributes: ['userId'],  // 只查询 userId
-            where: {
-                startTime: {
-                    [Op.lt]: now,  // 查找 startTime 小于给定日期的记录
-                },
-            },
-        });
-        const user = usersBeforeDate.map(record => record.user);
-        ActivityParticipation.destroy({ where: {}, });
-        return user;
-    }
-    catch (error) {
-        console.error(error)
-        return false
-    }
-}
-async function endRecord(id) {
-    try {
-        await ActivityParticipation.destroy({ where: { user: id } });
-        return true;
-    }
-    catch (error) {
-        console.error(error)
-        return false
-    }
-}
-
 //积分商店
 const Shop = sequelize.define('Shop', {
     id: {
@@ -608,42 +618,61 @@ const Shop = sequelize.define('Shop', {
         allowNull: false,
         defaultValue: 0
     },
+    image: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     isEnable: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true
     }
 })
-//积分历史
-const ScoreHistory = sequelize.define('scoreHistory', {
+
+
+const PurchaseHistory = sequelize.define('PurchaseHistory', {
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
+        allowNull: false
     },
-    operator: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0
-    },
-    target: {
+    userId: {
         type: DataTypes.INTEGER,
         allowNull: false
     },
-    score: {
+    goodsId: {
         type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    purchaseDate: {
+        type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: 0
+        defaultValue: DataTypes.NOW
+    },
+    orderId: {
+        type: DataTypes.STRING(50),
+        allowNull: true
     }
+}, {
+    tableName: 'purchase_histories',
+    timestamps: false // 如果不需要 createdAt 和 updatedAt 字段
 })
 
-async function createItem(name, description, quantity, price) {
+// 定义关联关系
+PurchaseHistory.associate = function (models) {
+    PurchaseHistory.belongsTo(models.User, { foreignKey: 'userId', as: 'User' });
+    PurchaseHistory.belongsTo(models.Shop, { foreignKey: 'goodsId', as: 'Goods' });
+}
+
+async function createItem(name, description, quantity, price, image) {
     try {
         await Shop.create({
             name: name,
             description: description,
             quantity: quantity,
-            price: price
+            price: price,
+            image: image
         })
         return true;
     }
@@ -652,14 +681,39 @@ async function createItem(name, description, quantity, price) {
         return false
     }
 }
+// 删除商品（支持批量）
 async function dropItem(id) {
     try {
-        await Shop.destroy({ where: { id: id } });
-        return true;
+        const result = await Shop.destroy({
+            where: {
+                id: id // 匹配指定的商品ID
+            }
+        });
+        return result > 0; // 返回true表示删除成功，false表示商品不存在或删除失败
+    } catch (error) {
+        console.error('删除单个商品错误:', error);
+        return false; // 发生错误时返回false
     }
-    catch (error) {
-        console.error(error)
-        return false
+}
+
+async function dropItems(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+        console.error('无效的商品ID数组');
+        return false; // 如果ids不是数组或为空，直接返回false
+    }
+
+    try {
+        const result = await Shop.destroy({
+            where: {
+                id: {
+                    [Op.in]: ids // 使用 Op.in 操作符匹配数组中的值
+                }
+            }
+        });
+        return result > 0; // 返回true表示删除成功，false表示没有符合条件的商品或删除失败
+    } catch (error) {
+        console.error('批量删除商品错误:', error);
+        return false; // 发生错误时返回false
     }
 }
 
@@ -675,6 +729,72 @@ async function changeItemAccessibility(id, able) {
 }
 
 /**
+ * 智能搜索商品，同时搜索name, id, description
+ * @param {*} searchID 可选项，有值时搜索所有name中有一个满足的商品，无值时返回所有商品
+ * @param {*} page 可选项，有值时会按10个一页输出
+ * @returns {Promise<Shop[]>} 返回商品数组
+ */
+async function searchShop(searchID, page) {
+    const pageSize = 10;
+    let totalNumber;
+    let result;
+
+    if (!searchID) {
+        totalNumber = await Shop.count();
+        let options = {};
+        // 仅在 page 有效时应用分页
+        if (typeof page === 'number' && page > 0) {
+            options.offset = (page - 1) * pageSize;
+            options.limit = pageSize;
+        }
+        result = await Shop.findAll(options);
+    } else {
+        // 构建查询条件
+        const whereCondition = {
+            [Op.or]: [
+                { name: { [Op.like]: `%${searchID}%` } },
+                { id: { [Op.eq]: searchID } },
+                { description: { [Op.like]: `%${searchID}%` } }
+            ]
+        };
+        
+        totalNumber = await Shop.count({ where: whereCondition });
+        result = await Shop.findAll({
+            where: whereCondition,
+            offset: (page - 1) * pageSize,
+            limit: pageSize
+        });
+    }
+
+    // 返回结果
+    if (typeof page === 'number' && page > 0) {
+        return { totalNumber, totalPage: Math.ceil(totalNumber / pageSize), result };
+    }
+    return { totalNumber, result };
+}
+
+/**
+ * 异步获取商品信息
+ * @returns {Promise<Array|number>} 正确返回商品数组，数据库错误返回-1
+ */
+async function getShopInfo() {
+    try {
+        // 查找所有商品记录
+        const res = await Shop.findAll();
+
+        if (!res || res.length === 0) {
+            console.log('未找到任何商品记录');
+            return []; // 返回空数组表示没有商品
+        }
+
+        return res;
+    } catch (error) {
+        console.error('获取商品信息时发生错误:', error);
+        return -1;
+    }
+}
+
+/**
  * 操作用户购买物品流程
  * @async 
  * @param {number} goodsID  商品id
@@ -684,21 +804,105 @@ async function changeItemAccessibility(id, able) {
 async function purchaseItem(goodsID, ID) {
     const transaction = await sequelize.transaction();
     try {
+        // 查找用户和商品信息
         const user = await User.findByPk(ID, { transaction });
         const goods = await Shop.findByPk(goodsID, { transaction });
-        if (user.score < goods.price) {
-            return 1;
+
+        if (!user || !goods) {
+            await transaction.rollback();
+            return -1; // 用户或商品不存在
         }
-        //todo 购买物品
-    }
-    catch (error) {
-        console.error(error)
-        return false
+
+        // 检查用户积分是否足够
+        if (user.score < goods.price) {
+            await transaction.rollback();
+            return 1; // 积分不足
+        }
+
+        // 更新用户积分
+        user.score -= goods.price;
+        await user.save({ transaction });
+
+        // 更新商品库存
+        if (goods.quantity > 0) {
+            goods.quantity -= 1;
+            await goods.save({ transaction });
+        } else {
+            await transaction.rollback();
+            return -1; // 商品库存不足
+        }
+
+        // 记录购买历史
+        const orderId = generateOrderId(); // 生成订单号（你可以根据业务需求自定义）
+        await PurchaseHistory.create({
+            userId: ID,
+            goodsId: goodsID,
+            purchaseDate: new Date(),
+            orderId: orderId
+        }, { transaction });
+
+        // 提交事务
+        await transaction.commit();
+
+        return 0; // 购买成功
+    } catch (error) {
+        console.error('购买商品时发生错误:', error);
+        await transaction.rollback();
+        return -1; // 服务器原因失败
     }
 }
+
+// 辅助函数：生成订单号（示例）
+function generateOrderId() {
+    return 'ORD' + Math.random().toString(36).substr(2, 9); // 示例生成随机订单号
+}
+
+/**
+ * 获取用户的购买历史
+ * @async 
+ * @param {number} userID 用户的id
+ * @returns {Promise<Array|number>} 正确返回购买历史数组，数据库错误返回-1
+ */
+async function getUserPurchaseHistory(userID) {
+    try {
+        const purchaseHistories = await PurchaseHistory.findAll({
+            where: { userId: userID },
+            include: [
+                {
+                    model: Shop, // 包含商品信息
+                    as: 'Goods', // 确保你在 PurchaseHistory 模型中有相应的关联
+                    attributes: ['name', 'description', 'price']
+                }
+            ],
+            order: [['purchaseDate', 'DESC']] // 按购买日期降序排列
+        });
+
+        if (!purchaseHistories || purchaseHistories.length === 0) {
+            console.log('未找到任何购买记录');
+            return []; // 返回空数组表示没有购买记录
+        }
+
+        return purchaseHistories;
+    } catch (error) {
+        console.error('获取购买历史时发生错误:', error);
+        return -1;
+    }
+}
+
+// 初始化关联
+User.hasMany(PurchaseHistory, { foreignKey: 'userId', as: 'PurchaseHistories' });
+PurchaseHistory.belongsTo(User, { foreignKey: 'userId', as: 'User' });
+
+Shop.hasMany(PurchaseHistory, { foreignKey: 'goodsId', as: 'PurchaseHistories' });
+PurchaseHistory.belongsTo(Shop, { foreignKey: 'goodsId', as: 'Goods' });
+
 module.exports = {
     User,
     createUser,
+    createItem,
+    dropItem,
+    dropItems,
+    changeItemAccessibility,
     getUserByID,
     superUserAutoUpdate,
     updateUser,
@@ -710,8 +914,12 @@ module.exports = {
     userPermissionChange,
     userPasswordExamine,
     searchUser,
+    searchShop,
     getMostRecentlyActivity,
     userPermissionChange,
     addActivity,
     addActivityFile,
+    getShopInfo,
+    purchaseItem,
+    getUserPurchaseHistory
 }

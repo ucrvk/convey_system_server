@@ -1,6 +1,6 @@
 {
   "name": "convey_system_server",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
@@ -19,11 +19,13 @@
   "homepage": "https://github.com/ucrvk/convey_system_server#readme",
   "description": "",
   "dependencies": {
+    "axios": "^1.8.4",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "sequelize": "^6.37.5",
     "sqlite3": "^5.1.7",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "ws": "^8.18.1"
   }
 }
