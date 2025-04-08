@@ -3,17 +3,47 @@ const { getUserByID } = require('./sql');
 
 // 登录检查中间件
 function loginCheckMiddleware(req, res, next) {
-    const id = req.body.operator || req.query.operator;
-    if (req.path.startsWith('/logs')) {
-        return next();
+    // 豁免路径列表（不需要 operator id 和 token 验证的路径）
+    const exemptPaths = [
+        '/status',           // 状态检查
+        '/wives',            // 静态文件
+        '/login',            // 登录路由
+        '/player/',          // truckersMP 玩家信息查询
+        '/servers',          // truckersMP 服务器列表
+        '/bans/',           // truckersMP 封禁记录
+        '/version',          // truckersMP 版本信息
+        '/vtc/',            // truckersMP VTC 成员查询
+        '/gametime',        // truckersMP 游戏时间
+        '/logs',             // 日志查询
+        '/activity/recently' // 近期活动（无需登录）
+    ];
+
+    // 检查当前路径是否在豁免列表中
+    const isExempt = exemptPaths.some(path => req.path.startsWith(path));
+
+    if (isExempt) {
+        return next(); // 直接放行，不检查 operator id 和 token
     }
+
+    // 非豁免路径，检查 operator id
+    const id = req.body.operator || req.query.operator;
     if (!id) {
         return res.status(400).json({ "status": "error", "message": "no operator id" });
     }
-    if (!jwtVerify(req.headers['authorization'].split(' ')[1], id)) {
+
+    // 检查 Authorization 头是否存在
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+        return res.status(401).json({ "status": "error", "message": "缺少 Authorization 头" });
+    }
+
+    // 提取并验证 JWT token
+    const token = authHeader.split(' ')[1]; // Bearer <token>
+    if (!token || !jwtVerify(token, id)) {
         return res.status(401).json({ "status": "error", "message": "token失效。请尝试重新登录" });
     }
-    next();
+
+    next(); // 验证通过，继续后续处理
 }
 
 /**
