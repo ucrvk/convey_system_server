@@ -6,6 +6,7 @@ const { superUserAutoUpdate } = require('./sql');
 const { WORKING_PORT } = require('./settings.json');
 const handle = require('./web_handle');
 const middleware = require('./middleware');
+const botApi = require('./bot_api');
 const logger = require('./logger'); // 引入日志管理器
 const WebSocket = require('ws');
 
@@ -204,6 +205,10 @@ app.get("/purchase-history", middleware.loginCheckMiddleware, (req, res, next) =
     logger.log('info', `用户 ${operatorId} 正在查询购买记录`);
     handle.getUserPurchaseHistoryHandle(req, res, next);
 });
+//机器人接口
+app.get('/bot/getActivity', botApi.botGetMostRecentlyActivity)
+app.get('/bot/bindUser', botApi.botBindUser)
+app.get('/bot/userScore', botApi.botGetUserScore)
 
 // 添加在路由注册区域之后，服务器启动之前(切记不要改位置)
 app.get('/logs/dates', (req, res) => {

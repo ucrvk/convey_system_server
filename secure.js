@@ -5,6 +5,9 @@ const { JWT } = require('./settings.json')
 function encryptPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
 }
+function examinePassword(password, hashedPassword) {
+    return encryptPassword(password) === hashedPassword;
+}
 
 /** 使用id签名*/
 function jwtSign(id) {
@@ -70,7 +73,7 @@ function userPermissionLevelCheck(permissionName, permissionLevel) {
         console.error('未知的权限名称:', permissionName);
         return false;
     }
-    
+
     // 位运算校验
     return (permissionLevel & (1 << bitPosition)) !== 0;
 }
@@ -97,5 +100,6 @@ module.exports = {
     encryptPassword,
     jwtSign,
     jwtVerify,
-    userPermissionLevelCheck
+    userPermissionLevelCheck,
+    examinePassword
 }

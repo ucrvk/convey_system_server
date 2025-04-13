@@ -1,6 +1,5 @@
-/data/8888.mp4
 /node_modules/
 /.vscode/
 /file-uuid.json
-/data/db.sqlite3
+/data
 /logs
