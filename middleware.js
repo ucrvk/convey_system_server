@@ -15,7 +15,8 @@ function loginCheckMiddleware(req, res, next) {
         '/vtc/',            // truckersMP VTC 成员查询
         '/gametime',        // truckersMP 游戏时间
         '/logs',             // 日志查询
-        '/activity/recently' // 近期活动（无需登录）
+        '/activity/recently', // 近期活动（无需登录）
+        '/bot'
     ];
 
     // 检查当前路径是否在豁免列表中

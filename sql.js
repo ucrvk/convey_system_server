@@ -288,23 +288,36 @@ async function searchUser(searchID, page) {
         totalNumber = await User.count({
             where: {
                 [Op.or]: [
-                { userid: searchID },
-                { tmpID: searchID },
-                { QQID: searchID }
-            ]
+                    { userid: searchID },
+                    { tmpID: searchID },
+                    { QQID: searchID }
+                ]
             }
         });
-        result = await User.findAll({
-            where: {
-                [Op.or]: [
-                { userid: searchID },
-                { tmpID: searchID },
-                { QQID: searchID }
-            ]
-            },
-            offset: (page - 1) * pageSize,
-            limit: pageSize
-        });
+        if (typeof page === 'undefined' || !isNaN(page)) {
+            result = await User.findAll({
+                where: {
+                    [Op.or]: [
+                        { userid: searchID },
+                        { tmpID: searchID },
+                        { QQID: searchID }
+                    ]
+                }
+            })
+        }
+        else {
+            result = await User.findAll({
+                where: {
+                    [Op.or]: [
+                        { userid: searchID },
+                        { tmpID: searchID },
+                        { QQID: searchID }
+                    ]
+                },
+                offset: (page - 1) * pageSize,
+                limit: pageSize
+            });
+        }
     }
 
     // 返回结果
@@ -438,7 +451,7 @@ async function autoDeleteOldData() {
     const transaction = await sequelize.transaction(); // 开启事务
     try {
         console.log('开始检查数据条数...');
-        
+
         // 获取当前表中的记录总数
         const count = await Activity.count({ transaction });
 
@@ -757,7 +770,7 @@ async function searchShop(searchID, page) {
                 { description: { [Op.like]: `%${searchID}%` } }
             ]
         };
-        
+
         totalNumber = await Shop.count({ where: whereCondition });
         result = await Shop.findAll({
             where: whereCondition,
